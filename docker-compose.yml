@@ -2,8 +2,30 @@
 
 services:
   build:
+    image: envoyproxy/envoy-build:devtools-v0.2.3
+    environment:
+      BUILD_UID: ${UID:?"`UID` must be set, try `export UID`"}
+      USER_UID: ${UID:?"`UID` must be set, try `export UID`"}
+      HOME: /home/envoybuild
+      DOCKER_COMMAND: ./build-website.sh
+      BAZEL_BUILD_OPTIONS: ${BAZEL_BUILD_OPTIONS:-}
+    volumes:
+    - .:/src/workspace/envoy-website
+    - ~/.cache/bazel:/home/envoybuild/.cache/bazel
+    - ~/.cache/bazelisk:/home/envoybuild/.cache/bazelisk
+    working_dir: /src/workspace/envoy-website
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+    - |
+      usermod -u "$${USER_UID}" envoybuild >/dev/null
+      chown envoybuild /proc/self/fd/2 2>/dev/null || true
+      exec gosu envoybuild ./build-website.sh
+
+
+  live:
     build:
-      context: &context https://github.com/envoyproxy/toolshed.git#f89fb5df8defa4b7daf9a19a899dbdfbbf3b8d62:docker/bazel
+      context: &context https://github.com/envoyproxy/toolshed.git#f6cc2e99964fcec26d4e497d7e41cca502e7241e:docker/bazel
+      target: extra
       args:
         USER_NAME: "${USER}"
         USER_ID: &uid "${UID}"
@@ -28,8 +50,10 @@ services:
           pkg-config
           sqlite3
           zlib1g-dev
-    command: ./build-website.sh
-    user: ${UID:-1000}:${GID:-}
+        EXTRA_APT_PKGS: >-
+          inotify-tools
+    command: ./rebuild.sh
+    user: ${UID:?"`UID` must be set, try `export UID`"}:${GID:-}
     volumes: &volumes
     - .:/src/workspace/envoy-website
     - ~/.cache/bazel:$HOME/.cache/bazel
@@ -37,24 +61,6 @@ services:
     working_dir: /src/workspace/envoy-website
     environment:
       BAZEL_BUILD_OPTIONS: &bazel_options ${BAZEL_BUILD_OPTIONS:-}
-
-  live:
-    build:
-      context: *context
-      target: extra
-      args:
-        USER_NAME: ${USER}
-        USER_ID: *uid
-        GROUP_ID: *gid
-        APT_PKGS: *apt_pkgs
-        EXTRA_APT_PKGS: >-
-          inotify-tools
-    command: ./rebuild.sh
-    user: ${UID:?"`UID` must be set, try `export UID`"}:${GID:-}
-    volumes: *volumes
-    working_dir: /src/workspace/envoy-website
-    environment:
-      BAZEL_BUILD_OPTIONS: *bazel_options
       DEBUG: ${DEBUG:-}
       RUN_ON_START: ${RUN_ON_START:-1}
       WATCH_COMMAND: inotify
