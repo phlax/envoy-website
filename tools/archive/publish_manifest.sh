@@ -18,22 +18,25 @@ if [[ -s "${MISSING_SIDECARS}" ]]; then
     exit 1
 fi
 
-if [[ "$(cat "${CHANGED}")" != "true" ]]; then
-    echo "Manifest is up to date, not updating"
-    exit 0
-fi
-while read -r version; do
-    [[ -z "${version}" ]] && continue
-    printf 'WARNING: %s is recorded in the manifest but is not present in the archive bucket, dropping the entry. This should not happen and may indicate bucket tampering.\n' "${version}" >&2
-done < "${DROPPED}"
 digest="$(sha256sum "${MANIFEST}" | cut -d' ' -f1)"
 pinned="gcs:${META_BUCKET}/envoy/docs/manifest/sha256-${digest}.json"
 
-# Immutable, content-addressed copy, written before the mutable pointer.
+# Immutable, content-addressed copy, written regardless of whether the pointer changed.
 "${RCLONE}" --config /dev/null copyto \
     --ignore-existing \
     --header-upload "Cache-Control: public, max-age=31536000, immutable" \
     "${MANIFEST}" "${pinned}"
+
+if [[ "$(cat "${CHANGED}")" != "true" ]]; then
+    echo "Manifest pointer is up to date"
+    printf 'manifest_digest=%s\n' "${digest}"
+    exit 0
+fi
+
+while read -r version; do
+    [[ -z "${version}" ]] && continue
+    printf 'WARNING: %s is recorded in the manifest but is not present in the archive bucket, dropping the entry. This should not happen and may indicate bucket tampering.\n' "${version}" >&2
+done < "${DROPPED}"
 
 # Mutable pointer, always the latest manifest.
 "${RCLONE}" --config /dev/null rcat \
@@ -46,3 +49,4 @@ printf '%s\n' "${digest}" | "${RCLONE}" --config /dev/null rcat \
     "gcs:${META_BUCKET}/envoy/docs/versions.json.sha256"
 
 printf 'Manifest updated: gs://%s/envoy/docs/versions.json (sha256:%s)\n' "${META_BUCKET}" "${digest}"
+printf 'manifest_digest=%s\n' "${digest}"
