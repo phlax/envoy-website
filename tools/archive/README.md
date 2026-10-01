@@ -9,14 +9,15 @@ content-addressed manifest before updating `versions.json` and its sha256 file.
 Network listing actions are local-only and uncached.
 
 The `Sync Envoy` workflow runs backfill before building and publishing the
-manifest. For manual writes, set `GCP_KEY_PATH` to a service-account key that
-can access both buckets. Bucket names default to `envoy-cncf-archive` and
-`envoy-cncf-meta`; override them with the Bazel flags below.
+manifest. It requires the `GCS_ARCHIVE_KEY` repository secret and the
+`GCS_ARCHIVE_BUCKET` and `GCS_META_BUCKET` repository variables. For manual
+writes, set `GCP_KEY_PATH` to a service-account key with the required access,
+and provide the bucket names with the Bazel flags below.
 
 ```bash
 ARGS=(--config=ci
-      --//tools/archive:archive_bucket="${GCS_ARCHIVE_BUCKET:-envoy-cncf-archive}"
-      --//tools/archive:meta_bucket="${GCS_META_BUCKET:-envoy-cncf-meta}")
+      --//tools/archive:archive_bucket="${GCS_ARCHIVE_BUCKET}"
+      --//tools/archive:meta_bucket="${GCS_META_BUCKET}")
 
 bazel run "${ARGS[@]}" //tools/archive:backfill -- --all --dry-run
 bazel run "${ARGS[@]}" //tools/archive:backfill -- --all

@@ -27,7 +27,7 @@ jobs:
       }}
     steps:
     - id: appauth
-      uses: envoyproxy/toolshed/actions/appauth@16ee2e312bbd80a2db5d76d22233722d0cfd82fa  # actions-v0.4.28
+      uses: envoyproxy/toolshed/actions/appauth@719447d2ab39e226e7bdceb58fd61340821d8473  # actions-v0.4.16
       with:
         key: ${{ secrets.ENVOY_CI_UPDATE_BOT_KEY }}
         app_id: ${{ secrets.ENVOY_CI_UPDATE_APP_ID }}
@@ -88,7 +88,7 @@ jobs:
       name: Check provided Envoy version
       if: ${{ inputs.commit_sha != '' }}
 
-    - uses: envoyproxy/toolshed/actions/gcp/setup@16ee2e312bbd80a2db5d76d22233722d0cfd82fa  # actions-v0.4.28
+    - uses: envoyproxy/toolshed/actions/gcp/setup@4a6a2986abd53c8a2d1077de4165fae369c5bc41  # actions-v0.4.23
       with:
         key: ${{ secrets.GCS_ARCHIVE_KEY }}
 
@@ -100,9 +100,9 @@ jobs:
         GCS_META_BUCKET: ${{ vars.GCS_META_BUCKET }}
       run: |
         set -euo pipefail
-        ARGS=(--config=ci)
-        if [[ -n "${GCS_ARCHIVE_BUCKET}" ]]; then ARGS+=("--//tools/archive:archive_bucket=${GCS_ARCHIVE_BUCKET}"); fi
-        if [[ -n "${GCS_META_BUCKET}" ]]; then ARGS+=("--//tools/archive:meta_bucket=${GCS_META_BUCKET}"); fi
+        ARGS=(--config=ci
+              --//tools/archive:archive_bucket="${GCS_ARCHIVE_BUCKET}"
+              --//tools/archive:meta_bucket="${GCS_META_BUCKET}")
         bazel run "${ARGS[@]}" //tools/archive:backfill -- --all
         bazel build "${ARGS[@]}" //tools/archive:manifest //tools/archive:changed //tools/archive:missing_sidecars //tools/archive:dropped
         manifest_sha="$(bazel run "${ARGS[@]}" //tools/archive:publish_manifest | tee /dev/stderr | sed -n 's/^manifest_digest=//p')"
@@ -117,6 +117,5 @@ jobs:
       env:
         ENVOY_VERSION: ${{ steps.state.outputs.should_update == 'true' && inputs.commit_sha || '' }}
         MANIFEST_SHA: ${{ steps.manifest.outputs.manifest_sha }}
-        META_BUCKET: ${{ vars.GCS_META_BUCKET || 'envoy-cncf-meta' }}
         COMMITTER_NAME: "update-envoy[bot]"
         COMMITTER_EMAIL: "135279899+update-envoy[bot]@users.noreply.github.com"

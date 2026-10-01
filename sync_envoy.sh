@@ -5,7 +5,6 @@ set -o pipefail
 
 ENVOY_VERSION="${ENVOY_VERSION:-}"
 MANIFEST_SHA="${MANIFEST_SHA:-}"
-META_BUCKET="${META_BUCKET:-envoy-cncf-meta}"
 UPDATED=
 
 if [[ -n "$COMMITTER_NAME" ]]; then
@@ -30,10 +29,6 @@ sync_envoy () {
 }
 
 sync_manifest () {
-    if [[ ! "${META_BUCKET}" =~ ^[a-z0-9][a-z0-9._-]*$ ]]; then
-        echo "Invalid meta bucket: ${META_BUCKET}" >&2
-        exit 1
-    fi
     if [[ ! "${MANIFEST_SHA}" =~ ^[0-9a-f]{64}$ ]]; then
         echo "Invalid manifest sha256: ${MANIFEST_SHA}" >&2
         exit 1
@@ -58,7 +53,7 @@ sync_manifest () {
 
     sed -i -E "/^http_file\\(/,/^\\)/ {
         /name = \"envoy_archive_manifest\"/,/^\\)/ {
-            s#url = \"https://storage.googleapis.com/[a-z0-9._-]+/envoy/docs/manifest/sha256-[0-9a-f]{64}\\.json\",#url = \"https://storage.googleapis.com/${META_BUCKET}/envoy/docs/manifest/sha256-${MANIFEST_SHA}.json\",#
+            s#url = \"https://storage.googleapis.com/envoy-cncf-meta/envoy/docs/manifest/sha256-[0-9a-f]{64}\\.json\",#url = \"https://storage.googleapis.com/envoy-cncf-meta/envoy/docs/manifest/sha256-${MANIFEST_SHA}.json\",#
             s#sha256 = \"[0-9a-f]{64}\",#sha256 = \"${MANIFEST_SHA}\",#
         }
     }" MODULE.bazel
